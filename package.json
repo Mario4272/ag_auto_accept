@@ -2,7 +2,7 @@
   "name": "antigravity-autoaccept",
   "displayName": "Antigravity AutoAccept",
   "description": "Automatically approves agent actions based on a user-defined policy.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "antigravity",
   "engines": {
     "vscode": "^1.90.0"
@@ -11,15 +11,7 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished",
-    "onCommand:antigravity-autoaccept.toggle",
-    "onCommand:antigravity-autoaccept.openConfig",
-    "onCommand:antigravity-autoaccept.reloadConfig",
-    "onCommand:antigravity-autoaccept.showLog",
-    "onCommand:antigravity-autoaccept.controlPanel",
-    "onCommand:antigravity-autoaccept.toggleTracing",
-    "onCommand:antigravity-autoaccept.captureTraces",
-    "onCommand:antigravity-autoaccept.testLadder"
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "contributes": {

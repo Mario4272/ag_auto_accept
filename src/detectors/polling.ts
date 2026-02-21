@@ -29,6 +29,14 @@ export class PollingDetector implements vscode.Disposable {
 
     private disposables: vscode.Disposable[] = [];
 
+    // The "Prelude Ladder" - commands to surface context before trying to accept.
+    private readonly PRELUDE_LADDER = [
+        'antigravity.openReviewChanges',
+        'chatEditing.viewChanges',
+        'workbench.view.scm',
+        'workbench.scm.focus'
+    ];
+
     // The "Command Ladder" - an ordered list of commands to attempt.
     private readonly COMMAND_LADDER = [
         // 1. Chat Editing (Cascade/Chat blocks)
@@ -92,19 +100,39 @@ export class PollingDetector implements vscode.Disposable {
     }
 
     public async poll() {
-        // Iterate through the command ladder and try to execute each command.
-        // We rely on the command's internal context key (internal to Antigravity)
-        // to determine if the command is active. If inactive, executeCommand is no-op.
+        const config = this.configService.getConfig();
+        const verbose = config.features?.tracingMode || false;
+
+        // 1. Context Prelude: Try to open/surface the review context
+        for (const cmd of this.PRELUDE_LADDER) {
+            try {
+                if (verbose) this.logger.log(`[Polling] Prelude TRY: ${cmd}`);
+                // Best-effort, sequential fire
+                await vscode.commands.executeCommand(cmd).then(
+                    () => { if (verbose) this.logger.log(`[Polling] Prelude RESOLVED: ${cmd}`); },
+                    (err) => { if (verbose) this.logger.log(`[Polling] Prelude REJECTED: ${cmd} (${err})`); }
+                );
+            } catch (e) {
+                // Ignore
+            }
+        }
+
+        // 2. Main Acceptance Ladder
         for (const cmd of this.COMMAND_LADDER) {
             try {
-                // We do not 'await' here to prevent one slow command from blocking the entire loop,
-                // but we trigger them sequentially in the loop for order of precedence.
-                vscode.commands.executeCommand(cmd).then(
-                    () => { },
-                    () => { } // Ignore errors
+                if (verbose) this.logger.log(`[Polling] Ladder TRY: ${cmd}`);
+                // Sequential fire to maintain precedence
+                await vscode.commands.executeCommand(cmd).then(
+                    () => {
+                        this.logger.log(`[Polling] Ladder RESOLVED: ${cmd}`);
+                        // If we resolved an accept command, we're likely done for this tick
+                    },
+                    (err) => {
+                        if (verbose) this.logger.log(`[Polling] Ladder REJECTED: ${cmd} (${err})`);
+                    }
                 );
             } catch (error) {
-                // Ignore synchronous errors
+                if (verbose) this.logger.log(`[Polling] Ladder ERROR: ${cmd} (${error})`);
             }
         }
     }
