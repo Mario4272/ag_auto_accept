@@ -1,0 +1,5 @@
+src/trace/trace.ts(23,46): error TS2339: Property 'tracingMode' does not exist on type '{ domAutomation: boolean; }'.
+src/trace/trace.ts(34,28): error TS2339: Property 'updateConfig' does not exist on type 'ConfigService'.
+src/ui/ui.ts(10,17): error TS6138: Property 'logger' is declared but its value is never read.
+src/ui/ui.ts(17,73): error TS2339: Property 'tracingMode' does not exist on type '{ domAutomation: boolean; }'.
+src/ui/ui.ts(31,49): error TS2339: Property 'tracingMode' does not exist on type '{ domAutomation: boolean; }'.

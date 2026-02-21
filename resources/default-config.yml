@@ -1,0 +1,47 @@
+version: 0.1.0
+enabled: true
+mode: "auto_accept_all"
+
+features:
+  domAutomation: true
+
+blocklist:
+  terminal:
+    patterns:
+      - '(?i)\brm\s+-rf\b'
+      - '(?i)\bdel\s+/f\s+/s\b'
+      - '(?i)\bmkfs\.\w+\b'
+      - '(?i)\bformat\b'
+      - '(?i)\bcurl\b.*\|\s*(bash|sh|zsh)\b'
+      - '(?i)\bwget\b.*\|\s*(bash|sh|zsh)\b'
+      - '(?i)\bsudo\b'
+      - '(?i)\bchown\b'
+      - '(?i)\bchmod\b'
+      - '(?i)\bssh\b'
+      - '(?i)\baws\b\s+configure\b'
+      - '(?i)\bgcloud\b\s+auth\b'
+      - '(?i)\baz\b\s+login\b'
+    executables: []
+
+  filesystem:
+    paths:
+      - "**/.ssh/**"
+      - "**/.gnupg/**"
+      - "**/.env"
+      - "**/.env.*"
+      - "**/secrets/**"
+      - "**/*secret*"
+      - "**/*key*"
+      - "**/*.pem"
+      - "**/*.p12"
+      - "**/*.pfx"
+      - "**/secrets/**"
+      - "**/*secret*"
+      - "**/*key*"
+      - "**/*.pem"
+      - "**/*.p12"
+      - "**/*.pfx"
+
+  network:
+    deny_hosts:
+      - "pastebin.com"

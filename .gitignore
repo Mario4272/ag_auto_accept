@@ -1,0 +1,13 @@
+out
+node_modules
+.vscode-test
+*.vsix
+.DS_Store
+logs/
+*.log
+.testing/
+.valkyrie/  
+.instructions/
+.claude/
+.ag/
+.errors/

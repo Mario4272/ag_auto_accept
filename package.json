@@ -1,0 +1,98 @@
+{
+  "name": "antigravity-autoaccept",
+  "displayName": "Antigravity AutoAccept",
+  "description": "Automatically approves agent actions based on a user-defined policy.",
+  "version": "0.2.0",
+  "publisher": "antigravity",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:antigravity-autoaccept.toggle",
+    "onCommand:antigravity-autoaccept.openConfig",
+    "onCommand:antigravity-autoaccept.reloadConfig",
+    "onCommand:antigravity-autoaccept.showLog",
+    "onCommand:antigravity-autoaccept.controlPanel",
+    "onCommand:antigravity-autoaccept.toggleTracing",
+    "onCommand:antigravity-autoaccept.captureTraces",
+    "onCommand:antigravity-autoaccept.testLadder"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "antigravity-autoaccept.toggle",
+        "title": "AutoAccept: Toggle Enabled"
+      },
+      {
+        "command": "antigravity-autoaccept.openConfig",
+        "title": "AutoAccept: Open Config File"
+      },
+      {
+        "command": "antigravity-autoaccept.reloadConfig",
+        "title": "AutoAccept: Reload Config"
+      },
+      {
+        "command": "antigravity-autoaccept.showLog",
+        "title": "AutoAccept: Show Output Log"
+      },
+      {
+        "command": "antigravity-autoaccept.debugCommands",
+        "title": "AutoAccept: Debug - Dump IDE Commands"
+      },
+      {
+        "command": "antigravity-autoaccept.controlPanel",
+        "title": "AutoAccept: Control Panel"
+      },
+      {
+        "command": "antigravity-autoaccept.toggleTracing",
+        "title": "AutoAccept: Toggle Discovery Tracing"
+      },
+      {
+        "command": "antigravity-autoaccept.captureTraces",
+        "title": "AutoAccept: Capture Traces & Discover"
+      },
+      {
+        "command": "antigravity-autoaccept.testLadder",
+        "title": "AutoAccept: Accept Files (Test Ladder)"
+      }
+    ],
+    "configuration": {
+      "title": "Antigravity AutoAccept",
+      "properties": {
+        "antigravity-autoaccept.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/Disable auto-acceptance of agent actions."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.0",
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.75.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.50.0",
+    "typescript": "^5.2.0"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "minimatch": "^9.0.0",
+    "zod": "^3.22.0"
+  }
+}
