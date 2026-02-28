@@ -4,7 +4,7 @@ export class Logger {
     private channel: vscode.OutputChannel;
 
     constructor() {
-        this.channel = vscode.window.createOutputChannel('Antigravity AutoAccept');
+        this.channel = vscode.window.createOutputChannel('Ag AutoAccept');
     }
 
     log(message: string) {

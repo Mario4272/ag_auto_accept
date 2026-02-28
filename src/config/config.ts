@@ -12,7 +12,11 @@ export interface Config {
     features: {
         domAutomation: boolean;
         tracingMode: boolean;
+        autoOpenReviewChanges: boolean;
+        learningMode: boolean;
     };
+    commands?: string[];
+    learnedCommands?: string[];
     blocklist: {
         terminal: {
             patterns: string[];
@@ -25,16 +29,27 @@ export interface Config {
             deny_hosts: string[];
         };
     };
+    logging: {
+        level: "info" | "debug";
+        polling: {
+            mode: "off" | "errors" | "state" | "debug";
+            summaryEveryMs: number;
+        };
+    };
 }
 
 const DEFAULT_CONFIG: Config = {
-    version: "0.1.0",
+    version: "0.2.7",
     enabled: true,
     mode: "auto_accept_all",
     features: {
         domAutomation: false,
-        tracingMode: false
+        tracingMode: false,
+        autoOpenReviewChanges: false,
+        learningMode: false
     },
+    commands: [],
+    learnedCommands: [],
     blocklist: {
         terminal: {
             patterns: [],
@@ -46,6 +61,13 @@ const DEFAULT_CONFIG: Config = {
         network: {
             deny_hosts: []
         }
+    },
+    logging: {
+        level: "info",
+        polling: {
+            mode: "state",
+            summaryEveryMs: 10000
+        }
     }
 };
 
@@ -55,9 +77,11 @@ export class ConfigService {
     private _onDidUpdateConfig = new vscode.EventEmitter<Config>();
     public readonly onDidUpdateConfig = this._onDidUpdateConfig.event;
     private watcher: fs.FSWatcher | undefined;
+    private readonly DEFAULT_CONFIG_DIR = '.ag-autoaccept';
+    private readonly DEFAULT_CONFIG_FILE = 'config.yml';
 
     constructor(private logger: Logger) {
-        this.configPath = path.join(os.homedir(), '.antigravity-autoaccept', 'config.yml');
+        this.configPath = path.join(os.homedir(), this.DEFAULT_CONFIG_DIR, this.DEFAULT_CONFIG_FILE);
         this.ensureConfigExists();
         this.loadConfig();
         this.watchConfig();
@@ -77,9 +101,7 @@ export class ConfigService {
         if (!fs.existsSync(this.configPath)) {
             try {
                 // In a real scenario, we'd copy the default config from resources
-                // For now, we'll write a minimal default or try to copy if we can locate resources
-                // We will rely on the extension context passed in initialization to find resources in a future step
-                // For now, just write a stringified default config to be safe
+                // For now, we'll write a stringified default config to be safe
                 const minimalConfig = yaml.dump(DEFAULT_CONFIG);
                 fs.writeFileSync(this.configPath, minimalConfig);
                 this.logger.log(`Created default config at: ${this.configPath}`);
@@ -108,7 +130,7 @@ export class ConfigService {
             }
         } catch (error) {
             this.logger.log(`Error loading config: ${error}. Using cached/default config.`);
-            vscode.window.showErrorMessage(`Antigravity AutoAccept: Error loading config. Using last known good config.`);
+            vscode.window.showErrorMessage(`Ag AutoAccept: Error loading config. Using last known good config.`);
         }
     }
 
@@ -135,7 +157,7 @@ export class ConfigService {
     }
 
     public updateEnabled(enabled: boolean) {
-        this.updateConfig({ ...this.config, enabled });
+        vscode.workspace.getConfiguration().update('agAutoAccept.enabled', enabled, vscode.ConfigurationTarget.Global);
     }
 
     public updateConfig(newConfig: Config) {
@@ -151,6 +173,8 @@ export class ConfigService {
             parsed.enabled = newConfig.enabled;
             parsed.mode = newConfig.mode;
             parsed.features = { ...parsed.features, ...newConfig.features };
+            parsed.commands = newConfig.commands;
+            parsed.learnedCommands = newConfig.learnedCommands;
 
             fs.writeFileSync(this.configPath, yaml.dump(parsed));
             this.logger.log(`Config updated and persisted to ${this.configPath}`);

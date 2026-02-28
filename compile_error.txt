@@ -1,7 +1,0 @@
-
-> antigravity-autoaccept@0.1.2 compile
-> tsc -p ./
-
-src/detectors/polling.ts(29,13): error TS6133: 'isEnabled' is declared but its value is never read.
-src/detectors/polling.ts(47,50): error TS2339: Property 'onDidChangeConfig' does not exist on type 'ConfigService'.
-src/detectors/polling.ts(101,22): error TS6133: 'err' is declared but its value is never read.

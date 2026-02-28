@@ -8,13 +8,25 @@ import { ConfigService } from '../config/config';
 export class TraceService {
     private readonly traceDir: string;
 
+    private learningInterval: NodeJS.Timeout | undefined;
+    private discoveredInSession = new Set<string>();
+
+    private readonly TRACE_MANAGER_CMD = 'antigravity.getManagerTrace';
+    private readonly TRACE_WORKBENCH_CMD = 'antigravity.getWorkbenchTrace';
+
     constructor(
         private configService: ConfigService,
         private logger: Logger
     ) {
-        this.traceDir = path.join(os.homedir(), '.antigravity-autoaccept', 'traces');
+        this.logger.log('[PollingDetector] Initializing Context-Aware Polling...');
+        this.traceDir = path.join(os.homedir(), '.ag-autoaccept', 'traces');
         if (!fs.existsSync(this.traceDir)) {
             fs.mkdirSync(this.traceDir, { recursive: true });
+        }
+
+        // Auto-start if configured
+        if (this.configService.getConfig().features?.learningMode) {
+            this.startLearningMode();
         }
     }
 
@@ -35,13 +47,182 @@ export class TraceService {
 
         if (newMode) {
             await vscode.commands.executeCommand('antigravity.enableTracing');
-            vscode.window.showInformationMessage('AutoAccept: Tracing ENABLED. Click the UI button once, then run Capture Traces.');
-            this.logger.log('Antigravity tracing enabled for discovery.');
+            vscode.window.showInformationMessage('Ag AutoAccept: Tracing ENABLED. Click the UI button once, then run Capture Traces.');
+            this.logger.log('Ag tracing enabled for discovery.');
         } else {
             // No easy way to disable tracing via command found in list, 
             // but we stop our capture behavior.
-            vscode.window.showInformationMessage('AutoAccept: Tracing mode DISABLED.');
-            this.logger.log('Antigravity tracing mode disabled.');
+            vscode.window.showInformationMessage('Ag AutoAccept: Tracing mode DISABLED.');
+            this.logger.log('Ag tracing mode disabled.');
+        }
+    }
+
+    public async toggleLearningMode() {
+        const config = this.configService.getConfig();
+        const currentMode = config.features?.learningMode || false;
+        const newMode = !currentMode;
+
+        const newConfig = {
+            ...config,
+            features: {
+                ...config.features,
+                learningMode: newMode
+            }
+        };
+        this.configService.updateConfig(newConfig);
+
+        if (newMode) {
+            this.startLearningMode();
+            vscode.window.showInformationMessage('AutoAccept: Learning Mode ENABLED. Automating discovery...');
+        } else {
+            this.stopLearningMode();
+            vscode.window.showInformationMessage('AutoAccept: Learning Mode DISABLED.');
+        }
+    }
+
+    private async startLearningMode() {
+        if (this.learningInterval) return;
+        this.logger.log('[TraceService] Passive Learning Mode starting...');
+
+        // Ensure Antigravity's internal tracing is enabled so we have data to discover
+        try {
+            await vscode.commands.executeCommand('antigravity.enableTracing');
+            this.logger.log('[TraceService] Ag tracing auto-enabled for Passive Learning.');
+        } catch (e) {
+            this.logger.log('[TraceService] WARNING: Failed to auto-enable Ag tracing: ' + e);
+        }
+
+        this.learningInterval = setInterval(() => this.passiveDiscover(), 15000); // 15s interval
+        this.logger.log('[TraceService] Passive Learning loop started (15s).');
+    }
+
+    private stopLearningMode() {
+        if (this.learningInterval) {
+            clearInterval(this.learningInterval);
+            this.learningInterval = undefined;
+            this.logger.log('[TraceService] Passive Learning Mode stopped.');
+        }
+    }
+
+    private async passiveDiscover() {
+        try {
+            const config = this.configService.getConfig();
+            const verbose = config.logging?.polling?.mode === 'debug' || config.features?.tracingMode;
+
+            if (verbose) {
+                this.logger.log('[Discovery] Passive Learning Heartbeat...');
+            }
+
+            const wbTrace = await vscode.commands.executeCommand<any>(this.TRACE_WORKBENCH_CMD);
+            const mgTrace = await vscode.commands.executeCommand<any>(this.TRACE_MANAGER_CMD);
+
+            if (!wbTrace && !mgTrace) {
+                if (verbose) this.logger.log('[Discovery] Both traces returned empty/undefined.');
+                return;
+            }
+
+            const wbObj = this.parseTraceObject(wbTrace);
+            const mgObj = this.parseTraceObject(mgTrace);
+
+            const wbCandidates = this.parseTraces(wbObj);
+            const mgCandidates = this.parseTraces(mgObj);
+            const candidates = Array.from(new Set([...wbCandidates, ...mgCandidates]));
+
+            const known = new Set([
+                ...(config.commands || []),
+                ...(config.learnedCommands || []),
+                // Hardcoded ladder from PollingDetector (simplified check)
+                'chatEditing.acceptAllFiles', 'chatEditing.acceptFile',
+                'antigravity.terminalCommand.accept', 'antigravity.agent.acceptAgentStep',
+                'workbench.files.action.acceptLocalChanges', 'inlineChat.acceptChanges',
+                'inlineChat2.keep',
+                'mergeEditor.acceptMerge', 'notification.acceptPrimaryAction',
+                'notebook.inlineChat.acceptChangesAndRun'
+            ]);
+
+            for (const cand of candidates) {
+                if (!known.has(cand) && !this.discoveredInSession.has(cand)) {
+                    this.discoveredInSession.add(cand);
+                    this.logger.log(`[Discovery] NEW command candidate found passively: ${cand}`);
+
+                    const selection = await vscode.window.showInformationMessage(
+                        `New Auto-Accept candidate found: ${cand}. Add to your learned commands list?`,
+                        'Yes, Add It',
+                        'Ignore'
+                    );
+
+                    if (selection === 'Yes, Add It') {
+                        const learned = config.learnedCommands || [];
+                        if (!learned.includes(cand)) {
+                            this.configService.updateConfig({
+                                ...config,
+                                learnedCommands: [...learned, cand]
+                            });
+                            vscode.window.showInformationMessage(`Learned: ${cand}`);
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            this.logger.log(`[Discovery] Passive Learning ERROR: ${e}`);
+        }
+    }
+
+    public async checkDiscoveryStatus() {
+        this.logger.log('[Discovery] MANUAL STATUS CHECK triggered.');
+        const config = this.configService.getConfig();
+        const learningEnabled = config.features?.learningMode;
+        this.logger.log(`[Discovery] Learning Mode: ${learningEnabled ? 'ENABLED' : 'DISABLED'}`);
+
+        const diagHeader = `=== Ag Discovery Diagnostics ===`;
+        this.logger.log(diagHeader);
+
+        try {
+            const wbTrace = await vscode.commands.executeCommand<any>(this.TRACE_WORKBENCH_CMD);
+            const mgTrace = await vscode.commands.executeCommand<any>(this.TRACE_MANAGER_CMD);
+
+            const managerStatus = mgTrace ? (mgTrace === 'UNDEFINED' ? 'UNDEFINED' : 'CAPTURED') : 'NONE';
+            const workbenchStatus = wbTrace ? (wbTrace === 'UNDEFINED' ? 'UNDEFINED' : 'CAPTURED') : 'NONE';
+            this.logger.log(`[Discovery] Manager Trace Status: ${managerStatus}`);
+            this.logger.log(`[Discovery] Workbench Trace Status: ${workbenchStatus}`);
+
+            const wbStr = this.toWritableTrace(wbTrace, 'workbench');
+            const mgStr = this.toWritableTrace(mgTrace, 'manager');
+
+            this.logger.log(`[Discovery] Workbench Trace size: ${wbStr.length} characters.`);
+            this.logger.log(`[Discovery] Manager Trace size: ${mgStr.length} characters.`);
+
+            if (wbStr.length < 100 && wbStr.includes('UNDEFINED')) {
+                this.logger.log('[Discovery] WARNING: Workbench trace is UNDEFINED. Is tracing enabled?');
+            }
+            if (mgStr.length < 100 && mgStr.includes('UNDEFINED')) {
+                this.logger.log('[Discovery] WARNING: Manager trace is UNDEFINED. v0.2.7 may require a newer Antigravity engine.');
+            }
+
+            const wbObj = this.parseTraceObject(wbTrace);
+            const mgObj = this.parseTraceObject(mgTrace);
+
+            const wbCandidates = this.parseTraces(wbObj);
+            const mgCandidates = this.parseTraces(mgObj);
+
+            this.logger.log(`[Discovery] Workbench Trace: Found ${wbCandidates.length} candidates.`);
+            this.logger.log(`[Discovery] Manager Trace: Found ${mgCandidates.length} candidates.`);
+
+            const totalCount = wbCandidates.length + mgCandidates.length;
+
+            if (totalCount > 0) {
+                if (wbCandidates.length > 0) this.logger.log(`[Discovery] WB Top: ${wbCandidates.slice(0, 5).join(', ')}`);
+                if (mgCandidates.length > 0) this.logger.log(`[Discovery] MG Top: ${mgCandidates.slice(0, 5).join(', ')}`);
+                vscode.window.showInformationMessage(`Discovery Status: OK. Found ${totalCount} candidates.`);
+            } else {
+                vscode.window.showInformationMessage('Discovery Status: Connected, but 0 candidates match filter.');
+                this.logger.log('[Discovery] No keywords matched in either trace buffer.');
+                // Log a snippet of the raw trace to the output for manual inspection
+                this.logger.log(`[Discovery] WB Snippet: ${wbStr.substring(0, 500)}...`);
+            }
+        } catch (e) {
+            this.logger.log(`[Discovery] Error during status check: ${e}`);
+            vscode.window.showErrorMessage(`Discovery Status Error: ${e}`);
         }
     }
 
@@ -51,6 +232,11 @@ export class TraceService {
         try {
             const workbenchTrace = await vscode.commands.executeCommand<any>('antigravity.getWorkbenchTrace');
             const managerTrace = await vscode.commands.executeCommand<any>('antigravity.getManagerTrace');
+
+            // Handle manager trace being undefined (Val's request)
+            if (managerTrace === undefined) {
+                this.logger.log('WARNING: Manager trace returned undefined; discovery may be incomplete.');
+            }
 
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             const wbPath = path.join(this.traceDir, `${timestamp}-workbench.json`);
@@ -65,17 +251,13 @@ export class TraceService {
             this.logger.log(`[Trace] Wrote workbench: ${wbPath} (size: ${wbStr.length})`);
             this.logger.log(`[Trace] Wrote manager: ${mgPath} (size: ${mgStr.length})`);
 
-            // Use the normalized workbench object for parsing
-            let wbObj = workbenchTrace;
-            if (typeof workbenchTrace === 'string') {
-                try {
-                    wbObj = JSON.parse(this.normalizePossibleDoubleEncodedJsonString(workbenchTrace));
-                } catch {
-                    wbObj = workbenchTrace;
-                }
-            }
+            const wbObj = this.parseTraceObject(workbenchTrace);
+            const mgObj = this.parseTraceObject(managerTrace);
 
-            const candidates = this.parseTraces(wbObj);
+            const candidates = Array.from(new Set([
+                ...this.parseTraces(wbObj),
+                ...this.parseTraces(mgObj)
+            ]));
             if (candidates.length > 0) {
                 const uniqueCandidates = [...new Set(candidates)];
                 this.logger.log(`Discovery SUCCESS! Found command candidates: ${uniqueCandidates.join(', ')}`);
@@ -105,17 +287,55 @@ export class TraceService {
     private parseTraces(trace: any): string[] {
         if (!trace) return [];
 
-        const commands: string[] = [];
+        const commands = new Set<string>();
         const seen = new Set<any>();
 
+        // Discovery keywords requested by Val
+        const DISCOVERY_KEYWORDS = [
+            'antigravity.',
+            'chatEditing.',
+            'agentAccept',
+            'acceptAll',
+            'acceptFile',
+            'commandId',
+            'command',
+            'execute',
+            'workbench.action',
+            'vscode.commands',
+            'cascade.',
+            'chat.'
+        ];
+
+        const isCommandCandidate = (val: string) => {
+            if (val.length < 5 || val.length > 150) return false;
+            if (val.includes(' ') || val.includes('\n')) return false;
+
+            const lowerVal = val.toLowerCase();
+            const matchesKeyword = DISCOVERY_KEYWORDS.some(k => lowerVal.includes(k.toLowerCase()));
+
+            // Broad capture: anything with dots is likely a command ID or filename
+            if (val.includes('.')) {
+                // Heuristic: If it has multiple dots, it's VERY likely a command ID
+                if ((val.match(/\./g) || []).length >= 2) return true;
+
+                // If only one dot, avoid common file extensions unless they match keywords
+                const noiseExtensions = ['.ts', '.js', '.json', '.yml', '.md', '.txt', '.scss', '.css', '.html'];
+                if (noiseExtensions.some(ext => val.endsWith(ext))) {
+                    return matchesKeyword;
+                }
+                return true;
+            }
+
+            return matchesKeyword;
+        };
+
         const search = (obj: any) => {
-            if (!obj || seen.has(obj)) return;
+            if (!obj || (typeof obj === 'object' && seen.has(obj))) return;
             if (typeof obj === 'object') seen.add(obj);
 
             if (typeof obj === 'string') {
-                // Look for command IDs
-                if (obj.startsWith('antigravity.') || obj.startsWith('chatEditing.')) {
-                    commands.push(obj);
+                if (isCommandCandidate(obj)) {
+                    commands.add(obj);
                 }
             } else if (Array.isArray(obj)) {
                 for (const item of obj) {
@@ -123,10 +343,10 @@ export class TraceService {
                 }
             } else if (typeof obj === 'object') {
                 for (const key in obj) {
-                    // Also check keys if they might contain command IDs
-                    if (key === 'command' || key === 'commandId' || key === 'id') {
-                        if (typeof obj[key] === 'string' && (obj[key].startsWith('antigravity.') || obj[key].startsWith('chatEditing.'))) {
-                            commands.push(obj[key]);
+                    // Check if key itself is a keyword of interest
+                    if (key === 'command' || key === 'commandId' || key === 'id' || key === 'id') {
+                        if (typeof obj[key] === 'string' && isCommandCandidate(obj[key])) {
+                            commands.add(obj[key]);
                         }
                     }
                     search(obj[key]);
@@ -135,20 +355,29 @@ export class TraceService {
         };
 
         search(trace);
-        return commands;
+
+        // Filter out too broad strings and known noise if necessary
+        return Array.from(commands).filter(cmd => {
+            // Must have at least one dot or be one of the known specific verbs
+            return cmd.includes('.') || cmd.toLowerCase().includes('accept');
+        });
+    }
+    private toWritableTrace(trace: any, type: string): string {
+        if (trace === undefined) return `// ${type} trace data: UNDEFINED`;
+        if (trace === null) return `// ${type} trace data: NULL`;
+        return typeof trace === 'string' ? trace : JSON.stringify(trace, null, 2);
     }
 
-    private toWritableTrace(payload: unknown, label: string): string {
-        if (payload === undefined) return `${label}: TRACE RETURNED UNDEFINED`;
-        if (payload === null) return `${label}: TRACE RETURNED NULL`;
-        if (typeof payload === 'string') {
-            return this.normalizePossibleDoubleEncodedJsonString(payload);
+    private parseTraceObject(trace: any): any {
+        if (!trace) return null;
+        if (typeof trace === 'string') {
+            try {
+                return JSON.parse(this.normalizePossibleDoubleEncodedJsonString(trace));
+            } catch {
+                return trace;
+            }
         }
-        try {
-            return JSON.stringify(payload, null, 2);
-        } catch {
-            return `${label}: TRACE STRINGIFY FAILED`;
-        }
+        return trace;
     }
 
     private normalizePossibleDoubleEncodedJsonString(s: string): string {

@@ -1,9 +1,10 @@
-version: 0.1.0
+version: 0.2.13
 enabled: true
 mode: "auto_accept_all"
 
 features:
   domAutomation: true
+  autoOpenReviewChanges: false
 
 blocklist:
   terminal:
@@ -45,3 +46,9 @@ blocklist:
   network:
     deny_hosts:
       - "pastebin.com"
+
+logging:
+  level: "info"
+  polling:
+    mode: "state"
+    summaryEveryMs: 10000

@@ -1,9 +1,13 @@
 {
-  "name": "antigravity-autoaccept",
-  "displayName": "Antigravity AutoAccept",
+  "name": "ag-auto-accept",
+  "displayName": "Ag AutoAccept",
   "description": "Automatically approves agent actions based on a user-defined policy.",
-  "version": "0.2.1",
-  "publisher": "antigravity",
+  "version": "0.2.13",
+  "publisher": "ag",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mario4272/ag_auto_accept"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },
@@ -17,46 +21,59 @@
   "contributes": {
     "commands": [
       {
-        "command": "antigravity-autoaccept.toggle",
-        "title": "AutoAccept: Toggle Enabled"
+        "command": "agAutoAccept.toggle",
+        "title": "Ag: Toggle AutoAccept"
       },
       {
-        "command": "antigravity-autoaccept.openConfig",
-        "title": "AutoAccept: Open Config File"
+        "command": "agAutoAccept.openConfig",
+        "title": "Ag: Open Config File"
       },
       {
-        "command": "antigravity-autoaccept.reloadConfig",
-        "title": "AutoAccept: Reload Config"
+        "command": "agAutoAccept.reloadConfig",
+        "title": "Ag: Reload Config"
       },
       {
-        "command": "antigravity-autoaccept.showLog",
-        "title": "AutoAccept: Show Output Log"
+        "command": "agAutoAccept.showLog",
+        "title": "Ag: Show Output Log"
       },
       {
-        "command": "antigravity-autoaccept.debugCommands",
-        "title": "AutoAccept: Debug - Dump IDE Commands"
+        "command": "agAutoAccept.debugCommands",
+        "title": "Ag: Debug - Dump IDE Commands"
       },
       {
-        "command": "antigravity-autoaccept.controlPanel",
-        "title": "AutoAccept: Control Panel"
+        "command": "agAutoAccept.acceptPendingFilesVerify",
+        "title": "Ag: Accept Pending Files (Verify)",
+        "category": "Ag"
       },
       {
-        "command": "antigravity-autoaccept.toggleTracing",
-        "title": "AutoAccept: Toggle Discovery Tracing"
+        "command": "agAutoAccept.controlPanel",
+        "title": "Ag: Control Panel"
       },
       {
-        "command": "antigravity-autoaccept.captureTraces",
-        "title": "AutoAccept: Capture Traces & Discover"
+        "command": "agAutoAccept.toggleTracing",
+        "title": "Ag: Toggle Discovery Tracing"
       },
       {
-        "command": "antigravity-autoaccept.testLadder",
-        "title": "AutoAccept: Accept Files (Test Ladder)"
+        "command": "agAutoAccept.toggleLearningMode",
+        "title": "Ag: Toggle Passive Learning (Auto-Discover)"
+      },
+      {
+        "command": "agAutoAccept.captureTraces",
+        "title": "Ag: Capture Traces & Discover"
+      },
+      {
+        "command": "agAutoAccept.testLadder",
+        "title": "Ag: Accept Files (Test Ladder)"
+      },
+      {
+        "command": "agAutoAccept.checkDiscoveryStatus",
+        "title": "Ag: Check Discovery Status"
       }
     ],
     "configuration": {
-      "title": "Antigravity AutoAccept",
+      "title": "Ag AutoAccept",
       "properties": {
-        "antigravity-autoaccept.enabled": {
+        "agAutoAccept.enabled": {
           "type": "boolean",
           "default": true,
           "description": "Enable/Disable auto-acceptance of agent actions."
@@ -85,6 +102,7 @@
   "dependencies": {
     "js-yaml": "^4.1.0",
     "minimatch": "^9.0.0",
+    "tesseract.js": "^5.0.0",
     "zod": "^3.22.0"
   }
 }

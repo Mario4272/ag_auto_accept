@@ -4,7 +4,7 @@ export interface ApprovalContext {
     id: string;                       // stable per pending approval if possible; otherwise generated
     timestamp: string;                // ISO
     type: ApprovalType;
-    source: string;                   // e.g., "antigravity.agent", "chat.panel", "output.channel"
+    source: string;                   // e.g., "ag.agent", "chat.panel", "output.channel"
     summary?: string;                 // short human summary
     terminal?: {
         rawCommand?: string;            // full command text if available

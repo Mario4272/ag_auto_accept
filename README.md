@@ -1,14 +1,13 @@
-# Antigravity AutoAccept
+# Ag AutoAccept
 
-**Automatic Agent Approval for Antigravity with Safety Guardrails.**
-
-This extension automatically accepts "approval required" prompts from the Antigravity agent, allowing for uninterrupted workflows. It includes a robust, user-configurable blocklist to prevent dangerous commands or sensitive file modifications.
+Automatically approves agent actions (terminal commands, agent steps, etc.) in the Ag interface based on a user-defined policy.
 
 ## Features
 
-- **Auto-Accept**: Automatically approves agent actions by default.
-- **Safety Blocklist**: Blocks dangerous terminal commands (e.g., `rm -rf`, `sudo`), sensitive file access (e.g., `.env`, `.ssh`), and specific network hosts.
-- **Configurable**: User-editable configuration file (`~/.antigravity-autoaccept/config.yml`) with hot-reload.
+- **Context-Aware Polling**: Bypasses WebView limitations to auto-accept prompts.
+- **Learning Mode**: Passively discovers new command IDs from Ag traces.
+- **Safety Policy**: (In development) Blocklist/Allowlist support for automated actions.
+- **Configurable**: User-editable configuration file (`~/.ag-autoaccept/config.yml`) with hot-reload.
 - **Toggleable**: One-click kill switch via the Status Bar or Command Palette.
 - **Auditable**: Logs all decisions (Accept/Block) to the "Antigravity AutoAccept" Output Channel.
 

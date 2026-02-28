@@ -27,6 +27,11 @@
     },
     "exclude": [
         "node_modules",
-        ".vscode-test"
+        ".vscode-test",
+        ".testing",
+        "traces",
+        "*.json",
+        "*.txt",
+        "*.js"
     ]
 }

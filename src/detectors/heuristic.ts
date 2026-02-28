@@ -18,8 +18,8 @@ export class HeuristicDetector implements Detector {
         // But let's try.
         this.disposables.push(vscode.workspace.onDidChangeTextDocument(e => {
             if (e.document.uri.scheme === 'output') {
-                // Check if it's the Antigravity output channel? 
-                // We don't know the exact name, maybe "Antigravity Agent"?
+                // Check if it's the Ag output channel? 
+                // We don't know the exact name, maybe "Ag Agent"?
                 // Log the name to help debug
                 // this.logger.log(`Scanning Output Channel: ${e.document.fileName}`); 
                 this.checkDocumentChanges(e);

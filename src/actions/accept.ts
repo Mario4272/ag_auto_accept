@@ -12,7 +12,7 @@ export class AcceptService {
         return this.mutex.dispatch(async () => {
             this.logger.log(`Attempting to approve: ${ctx.id} (${ctx.summary})`);
 
-            // 1. Try official Antigravity command
+            // 1. Try official Ag command
             try {
                 // Heuristic command IDs - ideally these are documented or discovered
                 const commands = await vscode.commands.getCommands();
@@ -24,7 +24,7 @@ export class AcceptService {
                     return true;
                 }
             } catch (e) {
-                this.logger.log(`Error executing Antigravity approval: ${e}`);
+                this.logger.log(`Error executing Ag approval: ${e}`);
             }
 
             // 2. Try generic "Accept" layout commands if available
